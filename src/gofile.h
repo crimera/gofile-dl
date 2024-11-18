@@ -18,6 +18,11 @@ char response[BUFFER_SIZE];
 CURLcode ret;
 char *error;
 
+void get_content_id(const char *url, char *file_id) {
+  const char *index = strrchr(url, '/');
+  strcpy(file_id, index + 1);
+}
+
 size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
   size_t total_size = size * nmemb;
   char *buffer = (char *)userdata;
