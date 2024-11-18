@@ -1,0 +1,156 @@
+#ifndef gofile__h
+#define gofile__h
+
+#include <cjson/cJSON.h>
+#include <curl/curl.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define CONTENT_URL "https://api.gofile.io/contents/%s?wt=4fd6sg89d7s6"
+#define USER_AGENT                                                             \
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) "                       \
+  "Gecko/20100101 Firefox/132.0"
+#define BUFFER_SIZE 102400
+
+char response[BUFFER_SIZE];
+CURLcode ret;
+char *error;
+
+size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
+  size_t total_size = size * nmemb;
+  char *buffer = (char *)userdata;
+
+  if (BUFFER_SIZE < total_size + strlen(buffer) + 1) {
+    fprintf(stderr, "Buffer overflow detected\n");
+    exit(EXIT_FAILURE);
+  }
+
+  // Append the received data to the buffer
+  strncat(buffer, (char *)ptr, total_size);
+
+  return total_size;
+}
+
+typedef struct {
+  char *name;
+  char *url;
+} Content;
+
+typedef struct {
+  Content *contents;
+  size_t size;
+} Contents;
+
+Contents *get_content(CURL *hnd, char *file_id, char token[32]) {
+  struct curl_slist *headers;
+
+  char token_header[64] = "Authorization: Bearer ";
+  strncat(token_header, token, 32);
+
+  headers = NULL;
+  headers = curl_slist_append(headers, token_header);
+
+  char response[BUFFER_SIZE] = {0};
+
+  char content_url[64] = {0};
+  snprintf(content_url, sizeof(content_url), CONTENT_URL, file_id);
+
+  curl_easy_setopt(hnd, CURLOPT_WRITEFUNCTION, write_callback);
+  curl_easy_setopt(hnd, CURLOPT_WRITEDATA, response);
+  curl_easy_setopt(hnd, CURLOPT_BUFFERSIZE, BUFFER_SIZE);
+  curl_easy_setopt(hnd, CURLOPT_URL, content_url);
+  curl_easy_setopt(hnd, CURLOPT_HTTPHEADER, headers);
+  curl_easy_setopt(hnd, CURLOPT_USERAGENT, USER_AGENT);
+
+  ret = curl_easy_perform(hnd);
+  printf("ret: %d\n", ret);
+  if (ret != CURLE_OK) {
+    fprintf(stderr, "curl_easy_perform() failed: %s\n",
+            curl_easy_strerror(ret));
+    return NULL;
+  } else {
+    long status_code;
+    curl_easy_getinfo(hnd, CURLINFO_RESPONSE_CODE, &status_code);
+    if (status_code == 403) {
+      fprintf(stderr, "get_content() 403 Forbidden\n");
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  cJSON *json = cJSON_Parse(response);
+  if (json == NULL) {
+    fprintf(stderr, "get_content() Could not parse json: %s\n",
+            cJSON_GetErrorPtr());
+    exit(EXIT_FAILURE);
+  }
+  json = cJSON_GetObjectItem(json, "data");
+  json = cJSON_GetObjectItem(json, "children");
+
+  int children_size = cJSON_GetArraySize(json);
+  Contents *children = malloc(sizeof(Contents));
+  children->contents = malloc(sizeof(Content) * children_size);
+  children->size = children_size;
+
+  for (int i = 0; i < children_size; i++) {
+    cJSON *item = cJSON_GetArrayItem(json, i);
+    cJSON *url = cJSON_GetObjectItem(item, "link");
+    cJSON *name = cJSON_GetObjectItem(item, "name");
+
+    if (url == NULL) {
+      fprintf(stderr, "get_content() url is NULL\n");
+      exit(EXIT_FAILURE);
+    }
+
+    if (name == NULL) {
+      fprintf(stderr, "get_content() name is NULL\n");
+      exit(EXIT_FAILURE);
+    }
+
+    children->contents[i].url = strdup(url->valuestring);
+    children->contents[i].name = strdup(name->valuestring);
+  }
+
+  cJSON_Delete(json);
+  json = NULL;
+  curl_slist_free_all(headers);
+  headers = NULL;
+
+  return children;
+}
+
+char *make_guest_account(CURL *hnd) {
+  curl_easy_setopt(hnd, CURLOPT_WRITEFUNCTION, write_callback);
+  curl_easy_setopt(hnd, CURLOPT_WRITEDATA, response);
+  curl_easy_setopt(hnd, CURLOPT_URL, "https://api.gofile.io/accounts");
+  curl_easy_setopt(hnd, CURLOPT_POSTFIELDS, "{}");
+
+  memset(response, 0, sizeof(response));
+  ret = curl_easy_perform(hnd);
+  if (ret != CURLE_OK) {
+    fprintf(stderr, "curl_easy_perform() failed: %s\n",
+            curl_easy_strerror(ret));
+    exit(EXIT_FAILURE);
+  }
+
+  error = strdup(curl_easy_strerror(ret));
+
+  cJSON *json = cJSON_Parse(response);
+  if (json == NULL) {
+    fprintf(stderr, "make_guest_account() Could not parse json: %s\n",
+            cJSON_GetErrorPtr());
+    exit(EXIT_FAILURE);
+  }
+
+  cJSON *data = cJSON_GetObjectItem(json, "data");
+  cJSON *token = cJSON_GetObjectItem(data, "token");
+
+  char *token_str = strdup(token->valuestring);
+
+  cJSON_Delete(json);
+
+  return token_str;
+}
+
+#endif

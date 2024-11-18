@@ -1,0 +1,8 @@
+[
+{
+  "directory": "/home/void/dev/gofile-dl/build",
+  "command": "/usr/sbin/clang  -I/usr/include/curl -I/usr/include/cjson -std=gnu99 -o CMakeFiles/gofile-dl.dir/src/main.c.o -c /home/void/dev/gofile-dl/src/main.c",
+  "file": "/home/void/dev/gofile-dl/src/main.c",
+  "output": "CMakeFiles/gofile-dl.dir/src/main.c.o"
+}
+]
