@@ -87,12 +87,12 @@ int main(int argc, char *argv[]) {
   Result *files = get_content(hnd, file_id, token);
   if (files->error != NULL) {
     if (*(files->error) == NotAuthorized) {
+      free_result(files);
       make_guest_account_and_save(hnd, sizeof token, token);
+      files = get_content(hnd, file_id, token);
     } else {
       fprintf(stderr, "Failed getting contents\n");
     }
-
-    free_result(files);
   }
 
   Contents *contents = files->data;
@@ -102,7 +102,9 @@ int main(int argc, char *argv[]) {
     download(contents->contents[i].url, token, argv[2]);
   }
 
-  free(files);
+  free_contents(contents);
+  free_result(files);
+
   curl_easy_cleanup(hnd);
 
   return EXIT_SUCCESS;

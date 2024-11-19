@@ -18,6 +18,50 @@ char response[BUFFER_SIZE];
 CURLcode ret;
 char *error;
 
+typedef struct
+{
+  char *name;
+  char *url;
+} Content;
+
+typedef struct
+{
+  Content *contents;
+  size_t size;
+} Contents;
+
+typedef enum
+{
+  NotAuthorized
+} GofileError;
+
+typedef struct
+{
+  GofileError *error;
+  void *data;
+} Result;
+
+void free_contents(Contents *contents)
+{
+  for (size_t i = 0; i < contents->size; i++)
+  {
+    free(contents->contents[i].name);
+    free(contents->contents[i].url);
+  }
+  free(contents->contents);
+  free(contents);
+}
+
+void free_result(Result *result)
+{
+  if (result->error != NULL)
+  {
+    free(error);
+  }
+  free(result);
+  result = NULL;
+}
+
 void get_content_id(const char *url, char *file_id)
 {
   const char *index = strrchr(url, '/');
@@ -40,30 +84,6 @@ size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata)
 
   return total_size;
 }
-
-typedef struct
-{
-  char *name;
-  char *url;
-} Content;
-
-typedef struct
-{
-  Content *contents;
-  size_t size;
-} Contents;
-
-typedef enum
-{
-  NotAuthorized
-} GofileError;
-
-typedef struct 
-{
-  GofileError *error;
-  void *data;
-} Result;
-
 
 Result *get_content(CURL *hnd, char *file_id, char token[32])
 {
@@ -157,12 +177,6 @@ Result *get_content(CURL *hnd, char *file_id, char token[32])
   result->error = NULL;
   result->data = children;
   return result;
-}
-
-void free_result(Result *result)
-{
-  free(result->error);
-  free(result);
 }
 
 void make_guest_account(CURL *hnd, size_t result_token_size, char *result_token)
