@@ -1,35 +1,44 @@
 #include "gofile.h"
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
-void download(char *url, char *token)
-{
+// TODO: allow for specifying custom save path
+void download(char *url, char *token, char *path) {
+  char *outpath = "";
+
+  if (path != NULL) {
+    asprintf(&outpath, "-d %s", path);
+  }
+
   char *ariacmd =
-      "aria2c -x16 --continue --header=\"Authorization: Bearer %s\" \"%s\"";
-  size_t command_size = strlen(ariacmd) + strlen(url) + strlen(token) - 4 + 1;
+      "aria2c -x16 %s --continue --header=\"Authorization: Bearer %s\" \"%s\"";
 
-  char command[command_size];
-  snprintf(command, command_size, ariacmd, token, url);
+  char *command;
+  if (asprintf(&command, ariacmd, outpath, token, url) == -1) {
+    printf("Failed to allocate memory for command\n");
+  }
 
   printf("command: %s\n", command);
 
   system(command);
+  free(command);
+  if (strcmp(outpath, "") != 0) {
+    free(outpath);
+  }
 }
 
-void make_guest_account_and_save(CURL *hnd, size_t token_size, char *token)
-{
+// TODO: token.txt should be put in a tmp file
+void make_guest_account_and_save(CURL *hnd, size_t token_size, char *token) {
   make_guest_account(hnd, token_size, token);
   FILE *file = fopen("token.txt", "w");
   fwrite(token, strlen(token), 1, file);
   fclose(file);
 }
 
-int main(int argc, char *argv[])
-{
-  if (argc != 2)
-  {
+int main(int argc, char *argv[]) {
+  if (argc < 2) {
     fprintf(stderr, "Usage: %s <url>\n", argv[0]);
     exit(EXIT_FAILURE);
   }
@@ -39,8 +48,7 @@ int main(int argc, char *argv[])
   char *path;
   CURLUcode ret = curl_url_get(url, CURLUPART_PATH, &path, 0);
 
-  if (ret)
-  {
+  if (ret) {
     fprintf(stderr, "curl_url_get() failed\n");
     exit(EXIT_FAILURE);
   }
@@ -54,22 +62,18 @@ int main(int argc, char *argv[])
   char token[33];
 
   FILE *file = fopen("token.txt", "r");
-  if (file == NULL)
-  {
-    if (errno == ENOENT)
-    {
+  if (file == NULL) {
+    if (errno == ENOENT) {
       fprintf(stderr, "token.txt not found\n");
       make_guest_account_and_save(hnd, sizeof token, token);
 
       file = fopen("token.txt", "r");
-      if (file == NULL)
-      {
-        fprintf(stderr, "Failed creating token.txt file: %s \n", strerror(errno));
+      if (file == NULL) {
+        fprintf(stderr, "Failed creating token.txt file: %s \n",
+                strerror(errno));
         exit(EXIT_FAILURE);
       }
-    }
-    else
-    {
+    } else {
       fprintf(stderr, "Failed to open token.txt: %s\n", strerror(errno));
       exit(EXIT_FAILURE);
     }
@@ -81,14 +85,10 @@ int main(int argc, char *argv[])
   printf("token: %s\n", token);
 
   Result *files = get_content(hnd, file_id, token);
-  if (files->error != NULL)
-  {
-    if (*(files->error) == NotAuthorized)
-    {
+  if (files->error != NULL) {
+    if (*(files->error) == NotAuthorized) {
       make_guest_account_and_save(hnd, sizeof token, token);
-    }
-    else
-    {
+    } else {
       fprintf(stderr, "Failed getting contents\n");
     }
 
@@ -96,11 +96,10 @@ int main(int argc, char *argv[])
   }
 
   Contents *contents = files->data;
-  for (size_t i = 0; i < contents->size; i++)
-  {
+  for (size_t i = 0; i < contents->size; i++) {
     printf("Downloading: %s\n", contents->contents[i].url);
 
-    download(contents->contents[i].url, token);
+    download(contents->contents[i].url, token, argv[2]);
   }
 
   free(files);
