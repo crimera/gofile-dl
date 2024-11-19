@@ -2,10 +2,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
-void download(char *url, char *token) {
+void download(char *url, char *token)
+{
   char *ariacmd =
-      "aria2c.exe -x16 --header=\"Authorization: Bearer %s\" \"%s\"";
+      "aria2c.exe -x16 --auto-file-renaming=false --header=\"Authorization: Bearer %s\" \"%s\"";
   size_t command_size = strlen(ariacmd) + strlen(url) + strlen(token) - 4 + 1;
 
   char command[command_size];
@@ -16,13 +18,27 @@ void download(char *url, char *token) {
   system(command);
 }
 
-int main(int argc, char *argv[]) {
+void make_guest_account_and_save(CURL *hnd, size_t token_size, char *token, FILE *file) {
+      make_guest_account(hnd, token_size, token);
+      file = fopen("token.txt", "w");
+      fwrite(token, token_size, 1, file);
+}
+
+int main(int argc, char *argv[])
+{
+  if (argc != 2)
+  {
+    fprintf(stderr, "Usage: %s <url>\n", argv[0]);
+    exit(EXIT_FAILURE);
+  }
+
   CURLU *url = curl_url();
   curl_url_set(url, CURLUPART_URL, argv[1], 0);
   char *path;
   CURLUcode ret = curl_url_get(url, CURLUPART_PATH, &path, 0);
 
-  if (ret) {
+  if (ret)
+  {
     fprintf(stderr, "curl_url_get() failed\n");
     exit(EXIT_FAILURE);
   }
@@ -32,17 +48,46 @@ int main(int argc, char *argv[]) {
   curl_url_cleanup(url);
 
   CURL *hnd = curl_easy_init();
-  char *token = "JrOAXhQQ8OIBd4LyY4iL2tjweaMcACBt";
+  curl_easy_setopt(hnd, CURLOPT_USERAGENT, GOFILE_USER_AGENT);
+  char token[33];
 
-  Contents *files = get_content(hnd, file_id, token);
-  if (files == NULL) {
-    fprintf(stderr, "get_content() failed\n");
+  FILE *file = fopen("token.txt", "rw");
+  if (file == NULL)
+  {
+    if (errno == ENOENT)
+    {
+      fprintf(stderr, "token.txt not found\n");
+      make_guest_account_and_save(hnd, sizeof token, token, file);
+    }
+    else
+    {
+      fprintf(stderr, "Failed to open token.txt: %s\n", strerror(errno));
+      exit(EXIT_FAILURE);
+    }
   }
 
-  for (size_t i = 0; i < files->size; i++) {
-    printf("Downloading: %s\n", files->contents[i].url);
+  fscanf(file, "%s", token);
+  fclose(file);
 
-    download(files->contents[i].url, token);
+  printf("token: %s\n", token);
+
+  Result *files = get_content(hnd, file_id, token);
+  if (files->error != NULL)
+  {
+    if (*(files->error) == NotAuthorized)
+    {
+      make_guest_account_and_save(hnd, sizeof token, token, file);
+    } else {
+      fprintf(stderr, "Failed getting contents\n");
+    }
+  }
+
+  Contents *contents = files->data;
+  for (size_t i = 0; i < contents->size; i++)
+  {
+    printf("Downloading: %s\n", contents->contents[i].url);
+
+    download(contents->contents[i].url, token);
   }
 
   free(files);
