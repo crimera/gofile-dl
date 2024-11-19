@@ -7,7 +7,7 @@
 void download(char *url, char *token)
 {
   char *ariacmd =
-      "aria2c.exe -x16 --continue --header=\"Authorization: Bearer %s\" \"%s\"";
+      "aria2c -x16 --continue --header=\"Authorization: Bearer %s\" \"%s\"";
   size_t command_size = strlen(ariacmd) + strlen(url) + strlen(token) - 4 + 1;
 
   char command[command_size];
