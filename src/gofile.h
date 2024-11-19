@@ -86,6 +86,7 @@ Result *get_content(CURL *hnd, char *file_id, char token[32])
   curl_easy_setopt(hnd, CURLOPT_URL, content_url);
   curl_easy_setopt(hnd, CURLOPT_HTTPHEADER, headers);
   curl_easy_setopt(hnd, CURLOPT_USERAGENT, GOFILE_USER_AGENT);
+  curl_easy_setopt(hnd, CURLOPT_HTTPGET, 1L);
 
   ret = curl_easy_perform(hnd);
   printf("ret: %d\n", ret);

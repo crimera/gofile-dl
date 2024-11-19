@@ -22,7 +22,7 @@ void make_guest_account_and_save(CURL *hnd, size_t token_size, char *token)
 {
   make_guest_account(hnd, token_size, token);
   FILE *file = fopen("token.txt", "w");
-  fwrite(token, token_size, 1, file);
+  fwrite(token, strlen(token), 1, file);
   fclose(file);
 }
 
@@ -60,6 +60,13 @@ int main(int argc, char *argv[])
     {
       fprintf(stderr, "token.txt not found\n");
       make_guest_account_and_save(hnd, sizeof token, token);
+
+      file = fopen("token.txt", "r");
+      if (file == NULL)
+      {
+        fprintf(stderr, "Failed creating token.txt file: %s \n", strerror(errno));
+        exit(EXIT_FAILURE);
+      }
     }
     else
     {
