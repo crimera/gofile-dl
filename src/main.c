@@ -18,10 +18,12 @@ void download(char *url, char *token)
   system(command);
 }
 
-void make_guest_account_and_save(CURL *hnd, size_t token_size, char *token, FILE *file) {
-      make_guest_account(hnd, token_size, token);
-      file = fopen("token.txt", "w");
-      fwrite(token, token_size, 1, file);
+void make_guest_account_and_save(CURL *hnd, size_t token_size, char *token)
+{
+  make_guest_account(hnd, token_size, token);
+  FILE *file = fopen("token.txt", "w");
+  fwrite(token, token_size, 1, file);
+  fclose(file);
 }
 
 int main(int argc, char *argv[])
@@ -51,13 +53,13 @@ int main(int argc, char *argv[])
   curl_easy_setopt(hnd, CURLOPT_USERAGENT, GOFILE_USER_AGENT);
   char token[33];
 
-  FILE *file = fopen("token.txt", "rw");
+  FILE *file = fopen("token.txt", "r");
   if (file == NULL)
   {
     if (errno == ENOENT)
     {
       fprintf(stderr, "token.txt not found\n");
-      make_guest_account_and_save(hnd, sizeof token, token, file);
+      make_guest_account_and_save(hnd, sizeof token, token);
     }
     else
     {
@@ -76,10 +78,14 @@ int main(int argc, char *argv[])
   {
     if (*(files->error) == NotAuthorized)
     {
-      make_guest_account_and_save(hnd, sizeof token, token, file);
-    } else {
+      make_guest_account_and_save(hnd, sizeof token, token);
+    }
+    else
+    {
       fprintf(stderr, "Failed getting contents\n");
     }
+
+    free_result(files);
   }
 
   Contents *contents = files->data;

@@ -103,6 +103,7 @@ Result *get_content(CURL *hnd, char *file_id, char token[32])
     {
       fprintf(stderr, "Not authorized\n");
       Result *result = malloc(sizeof(Result));
+      result->error = malloc(sizeof(GofileError));
       *(result->error) = NotAuthorized;
       result->data = NULL;
       return result;
@@ -155,6 +156,12 @@ Result *get_content(CURL *hnd, char *file_id, char token[32])
   result->error = NULL;
   result->data = children;
   return result;
+}
+
+void free_result(Result *result)
+{
+  free(result->error);
+  free(result);
 }
 
 void make_guest_account(CURL *hnd, size_t result_token_size, char *result_token)
