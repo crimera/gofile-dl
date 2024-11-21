@@ -9,8 +9,8 @@
 #include <string.h>
 
 #define CONTENT_URL "https://api.gofile.io/contents/%s?wt=4fd6sg89d7s6"
-#define GOFILE_USER_AGENT                                \
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) " \
+#define GOFILE_USER_AGENT                                                      \
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) "                       \
   "Gecko/20100101 Firefox/132.0"
 #define BUFFER_SIZE 102400
 
@@ -18,33 +18,25 @@ char response[BUFFER_SIZE];
 CURLcode ret;
 char *error;
 
-typedef struct
-{
+typedef struct {
   char *name;
   char *url;
 } Content;
 
-typedef struct
-{
+typedef struct {
   Content *contents;
   size_t size;
 } Contents;
 
-typedef enum
-{
-  NotAuthorized
-} GofileError;
+typedef enum { NotAuthorized } GofileError;
 
-typedef struct
-{
+typedef struct {
   GofileError *error;
   void *data;
 } Result;
 
-void free_contents(Contents *contents)
-{
-  for (size_t i = 0; i < contents->size; i++)
-  {
+void free_contents(Contents *contents) {
+  for (size_t i = 0; i < contents->size; i++) {
     free(contents->contents[i].name);
     free(contents->contents[i].url);
   }
@@ -52,31 +44,33 @@ void free_contents(Contents *contents)
   free(contents);
 }
 
-void free_result(Result *result)
-{
-  if (result->error != NULL)
-  {
+void free_result(Result *result) {
+  if (result->error != NULL) {
     free(error);
   }
   free(result);
   result = NULL;
 }
 
-void get_content_id(const char *url, char *file_id)
-{
+int DEBUG_MODE = 0;
+
+void get_content_id(const char *url, char *file_id) {
   const char *index = strrchr(url, '/');
   strcpy(file_id, index + 1);
 }
 
-size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata)
-{
+size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
   size_t total_size = size * nmemb;
   char *buffer = (char *)userdata;
 
-  if (BUFFER_SIZE < total_size + strlen(buffer) + 1)
-  {
+  if (BUFFER_SIZE < total_size + strlen(buffer) + 1) {
     fprintf(stderr, "Buffer overflow detected\n");
     exit(EXIT_FAILURE);
+  }
+
+  if (DEBUG_MODE) {
+    printf("total_size: %ld\n", total_size);
+    printf("buffer: %s\n", (char *)ptr);
   }
 
   // Append the received data to the buffer
@@ -85,8 +79,7 @@ size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata)
   return total_size;
 }
 
-Result *get_content(CURL *hnd, char *file_id, char token[32])
-{
+Result *get_content(CURL *hnd, char *file_id, char token[32]) {
   struct curl_slist *headers;
 
   char token_header[64] = "Authorization: Bearer ";
@@ -110,18 +103,14 @@ Result *get_content(CURL *hnd, char *file_id, char token[32])
 
   ret = curl_easy_perform(hnd);
   printf("ret: %d\n", ret);
-  if (ret != CURLE_OK)
-  {
+  if (ret != CURLE_OK) {
     fprintf(stderr, "curl_easy_perform() failed: %s\n",
             curl_easy_strerror(ret));
     return NULL;
-  }
-  else
-  {
+  } else {
     long status_code;
     curl_easy_getinfo(hnd, CURLINFO_RESPONSE_CODE, &status_code);
-    if (status_code == 401)
-    {
+    if (status_code == 401) {
       fprintf(stderr, "Not authorized\n");
       Result *result = malloc(sizeof(Result));
       result->error = malloc(sizeof(GofileError));
@@ -132,8 +121,7 @@ Result *get_content(CURL *hnd, char *file_id, char token[32])
   }
 
   cJSON *json = cJSON_Parse(response);
-  if (json == NULL)
-  {
+  if (json == NULL) {
     fprintf(stderr, "get_content() Could not parse json: %s\n",
             cJSON_GetErrorPtr());
     exit(EXIT_FAILURE);
@@ -146,20 +134,17 @@ Result *get_content(CURL *hnd, char *file_id, char token[32])
   children->contents = malloc(sizeof(Content) * children_size);
   children->size = children_size;
 
-  for (int i = 0; i < children_size; i++)
-  {
+  for (int i = 0; i < children_size; i++) {
     cJSON *item = cJSON_GetArrayItem(json, i);
     cJSON *url = cJSON_GetObjectItem(item, "link");
     cJSON *name = cJSON_GetObjectItem(item, "name");
 
-    if (url == NULL)
-    {
+    if (url == NULL) {
       fprintf(stderr, "get_content() url is NULL\n");
       exit(EXIT_FAILURE);
     }
 
-    if (name == NULL)
-    {
+    if (name == NULL) {
       fprintf(stderr, "get_content() name is NULL\n");
       exit(EXIT_FAILURE);
     }
@@ -179,8 +164,8 @@ Result *get_content(CURL *hnd, char *file_id, char token[32])
   return result;
 }
 
-void make_guest_account(CURL *hnd, size_t result_token_size, char *result_token)
-{
+void make_guest_account(CURL *hnd, size_t result_token_size,
+                        char *result_token) {
   curl_easy_setopt(hnd, CURLOPT_WRITEFUNCTION, write_callback);
   curl_easy_setopt(hnd, CURLOPT_WRITEDATA, response);
   curl_easy_setopt(hnd, CURLOPT_URL, "https://api.gofile.io/accounts");
@@ -188,8 +173,7 @@ void make_guest_account(CURL *hnd, size_t result_token_size, char *result_token)
 
   memset(response, 0, sizeof(response));
   ret = curl_easy_perform(hnd);
-  if (ret != CURLE_OK)
-  {
+  if (ret != CURLE_OK) {
     fprintf(stderr, "curl_easy_perform() failed: %s\n",
             curl_easy_strerror(ret));
     exit(EXIT_FAILURE);
@@ -198,8 +182,7 @@ void make_guest_account(CURL *hnd, size_t result_token_size, char *result_token)
   error = strdup(curl_easy_strerror(ret));
 
   cJSON *json = cJSON_Parse(response);
-  if (json == NULL)
-  {
+  if (json == NULL) {
     fprintf(stderr, "make_guest_account() Could not parse json: %s\n",
             cJSON_GetErrorPtr());
     exit(EXIT_FAILURE);
@@ -208,8 +191,7 @@ void make_guest_account(CURL *hnd, size_t result_token_size, char *result_token)
   cJSON *data = cJSON_GetObjectItem(json, "data");
   cJSON *token = cJSON_GetObjectItem(data, "token");
 
-  if (strlen(token->valuestring) > result_token_size)
-  {
+  if (strlen(token->valuestring) > result_token_size) {
     fprintf(stderr, "make_guest_account() token is too long\n");
     exit(EXIT_FAILURE);
   }

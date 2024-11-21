@@ -43,6 +43,13 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
 
+	for (int i = 0; i < argc; i++) {
+		if (strcmp(argv[i], "-d") == 0) {
+			printf("Debug Mode Enabled\n");
+			DEBUG_MODE = 1;
+		}
+	}
+
   CURLU *url = curl_url();
   curl_url_set(url, CURLUPART_URL, argv[1], 0);
   char *path;
