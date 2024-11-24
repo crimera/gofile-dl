@@ -57,8 +57,20 @@ void save_token(char *token) {
 
 int main(int argc, char **argv) {
   if (argc < 2) {
-    fprintf(stderr, "Usage: %s <url>\n", argv[0]);
+    fprintf(stderr, "Usage: %s <file_id> [-d <directory>]\n", argv[0]);
     return 1;
+  }
+
+  char *directory = NULL;
+  for (int i = 0; i < argc; i++) {
+    if (strcmp(argv[i], "-d") == 0) {
+      if (i + 1 < argc) {
+        directory = argv[i + 1];
+      } else {
+        fprintf(stderr, "No directory specified\n");
+        return 1;
+      }
+    }
   }
 
   CURL *curl = curl_easy_init();
@@ -90,7 +102,7 @@ int main(int argc, char **argv) {
 
   Content *files = get_files(content);
   for (int i = 0; i < files->children_count; i++) {
-    download(files->files[i].url, token, argv[2]);
+    download(files->files[i].url, token, directory);
   }
 
   free_files(files);

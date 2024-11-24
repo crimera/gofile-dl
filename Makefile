@@ -8,4 +8,4 @@ val: build
 	valgrind --leak-check=full -s ./main
 
 test: build
-	valgrind --leak-check=full -s ./main "https://gofile.io/d/5wQvT1"
+	valgrind --leak-check=full -s ./main "https://gofile.io/d/wm0FjD" -d test
