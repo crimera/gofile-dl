@@ -1,5 +1,5 @@
 build:
-	clang -lcurl -lcjson main.c gofile.c -g -o main
+	clang -lcurl -Ilibs main.c gofile.c  libs/cjson/cJSON.c -o main
 
 gdb: build
 	gdb --args ./main
