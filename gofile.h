@@ -39,6 +39,7 @@ char *fetch_guest_account(CURL *hnd);
 char *get_account_token(CURL *hnd);
 
 char *fetch_content(CURL *hnd, char *token, char *file_id);
+char *get_files_json_string(char *content);
 Content *get_files(char *content);
 void free_files(Content *content);
 

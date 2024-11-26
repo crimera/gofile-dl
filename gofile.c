@@ -23,6 +23,23 @@ void free_response(Response *resp) {
   }
 }
 
+void free_files(Content *content) {
+  if (content == NULL) {
+    return;
+  }
+
+  for (size_t i = 0; i < content->children_count; ++i) {
+    free(content->files[i].name);
+    free(content->files[i].url);
+  }
+
+  free(content->files);
+  content->files = NULL;
+  content->children_count = 0;
+
+  free(content);
+}
+
 size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
   size_t total_size = size * nmemb;
   Response *response = (Response *)userdata;
@@ -128,6 +145,22 @@ char *fetch_content(CURL *hnd, char *token, char *file_id) {
   return out;
 }
 
+char *get_files_json_string(char *content) {
+  cJSON *json = cJSON_Parse(content);
+  if (json == NULL) {
+    fprintf(stderr, "failed to parse json: %s", cJSON_GetErrorPtr());
+  }
+
+  cJSON *data = cJSON_GetObjectItem(json, "data");
+  cJSON *children = cJSON_GetObjectItem(data, "children");
+
+  char *out = cJSON_Print(children);
+
+  cJSON_Delete(json);
+
+  return out;
+}
+
 Content *get_files(char *content) {
   // TODO: check for parsing errors
   cJSON *json = cJSON_Parse(content);
@@ -158,21 +191,4 @@ Content *get_files(char *content) {
   cJSON_Delete(json);
 
   return contents;
-}
-
-void free_files(Content *content) {
-  if (content == NULL) {
-    return;
-  }
-
-  for (size_t i = 0; i < content->children_count; ++i) {
-    free(content->files[i].name);
-    free(content->files[i].url);
-  }
-
-  free(content->files);
-  content->files = NULL;
-  content->children_count = 0;
-
-  free(content);
 }

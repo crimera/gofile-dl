@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 void download(char *url, char *token, char *path) {
   char *outpath = "";
@@ -62,6 +63,7 @@ int main(int argc, char **argv) {
   }
 
   char *directory = NULL;
+  bool json = false;
   for (int i = 0; i < argc; i++) {
     if (strcmp(argv[i], "-d") == 0) {
       if (i + 1 < argc) {
@@ -70,6 +72,10 @@ int main(int argc, char **argv) {
         fprintf(stderr, "No directory specified\n");
         return 1;
       }
+    }
+
+    if (strcmp(argv[i], "-json") == 0) {
+      json = true;
     }
   }
 
@@ -88,24 +94,27 @@ int main(int argc, char **argv) {
     }
   }
 
-  printf("token: %s\n", token);
-
   // working "wm0FjD"
   // Not working "5wQvT1"
   char *file_id = get_content_id(argv[1]);
-  printf("file id: %s\n", file_id);
 
   char *content = fetch_content(curl, token, file_id);
-  printf("content: %s\n", content);
 
   free(file_id);
 
-  Content *files = get_files(content);
-  for (int i = 0; i < files->children_count; i++) {
-    download(files->files[i].url, token, directory);
+  if (json) {
+    char *json_string = get_files_json_string(content);
+    printf("%s\n", json_string);
+    free(json_string);
+  } else {
+    Content *files = get_files(content);
+    for (int i = 0; i < files->children_count; i++) {
+      download(files->files[i].url, token, directory);
+    }
+
+    free_files(files);
   }
 
-  free_files(files);
   free(content);
   free(token);
 
